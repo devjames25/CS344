@@ -1,0 +1,95 @@
+#!/bin/bash
+FILE=$2
+declare -A FILEARRAY
+declare -i ROW=0;
+declare -i COL=0;
+
+#Checks if File can be found
+checkValidFile()
+{
+    if [ ! -f $FILE ]; then
+        echo "./stats: cannot read $FILE";
+        exit;
+    fi
+}
+
+#utility for debugging
+printArray()
+{
+    for ((i=0;i<ROW;i++));
+    do
+        for ((j=0;j<COL;j++));
+        do
+            echo ${FILEARRAY[$i,$j]};
+        done;
+    done;
+}
+
+#utility for filling 2d array with data
+FillArr()
+{
+    declare -i numRows=0;
+    declare -i numCols;
+    while read line; 
+    do
+        numCols=0;
+        for value in $line;
+        do
+            FILEARRAY[$numRows,$numCols]=$value;
+            numCols+=1;
+        done;
+        numRows+=1;
+
+        #setting statics
+        COL=numCols;
+        ROW=numRows;
+    done < $FILE;
+}
+
+rows_func() 
+{
+    checkValidFile;
+    FillArr;
+
+    #Average logic
+    #variables
+
+    declare -i total=0;
+
+
+    for ((i=0;i<ROW;i++));
+    do
+        total=0;
+        for ((j=0;j<COL;j++));
+        do
+            total+=${FILEARRAY[$i,$j]};
+        done;
+        #echo $total;
+        echo "AVG:"$(($total/$COL));
+    done;
+
+    #median logic
+    #SortedArr=(for i in $row;do printf "$i"; done | sort -n;)
+
+}
+
+cols_func()
+{
+    checkValidFile; 
+    FillArr;
+
+    #Averages logic
+
+    #Median logic
+
+    printArray;
+}
+
+#Main
+if [ $1 == "-rows" ]; then
+    rows_func;
+elif [ $1 == "-cols" ]; then
+    cols_func;
+else
+    echo "./stats {-rows|-cols} [file]"
+fi
