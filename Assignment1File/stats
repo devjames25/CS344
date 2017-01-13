@@ -1,0 +1,62 @@
+#!/bin/bash
+FILENAME=$2
+TMPFILENAME="tmp.txt"
+declare -A FILEARRAY
+declare -i ROW=0;
+declare -i COL=0;
+
+#Checks if File can be found
+checkValidFile()
+{
+    if [ ! -f $FILE ]; then
+        echo "$0: cannot read $FILE" 1>&2;
+        exit;
+    fi
+}
+
+#utility for debugging
+printArray()
+{
+    for ((i=0;i<ROW;i++));
+    do
+        for ((j=0;j<COL;j++));
+        do
+            echo ${FILEARRAY[$i,$j]};
+        done;
+    done;
+}
+
+#utility for filling 2d array with data
+FillTMPFile()
+{
+    sort $File > $TMPFILENAME;
+
+}
+
+rows_func() 
+{
+    checkValidFile;
+    FillTMPFile;
+
+}
+
+cols_func()
+{
+    checkValidFile; 
+    FillTMPFile;
+
+    #Averages logic
+
+    #Median logic
+
+    printArray;
+}
+
+#Main
+if [[ $1 =~ ^-r  ]]; then
+    rows_func;
+elif [[ $1 =~ ^-c ]]; then
+    cols_func;
+else
+    echo "$0 {-rows|-cols} [file]" 1>&2;
+fi
