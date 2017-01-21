@@ -1,10 +1,21 @@
 #!/bin/bash
+#####################
+# Kevin Turkington  #
+# CS 344            #
+# Assignment 1      #
+# 10/21/17          #
+#####################
+
+#RUN TIME CONSTANTS
 FILE=$2
 TEMPFILE="$$.tmp"
 declare -i ROW=0;
 declare -i COL=0;
+declare -i ROWMEDIAN;
+declare -i COLMEDIAN;
 
-#Checks if File can be found
+#Checks if File can be found in current directory
+#or specified directory.
 checkValidFile()
 {
     if [ ! -f $FILE ]; then
@@ -13,22 +24,33 @@ checkValidFile()
     fi
 }
 
+#Utility for setting run time constants
 DimensionsUtil()
 {
+    # takes first column and counts lines for row
     ROW=$(cut -f 1 $FILE | wc -l);
+    # takes first row, replaces tabs with newline and counts lines for column
     COL=$(head -n 1 $FILE | tr '\t' '\n' | wc -l);
+
+    ROWMEDIAN=$(( ($ROW + 1 )/ 2));
+    COLMEDIAN=$(( ($COL + 1 )/ 2));
+
     # echo "ROW: $ROW";
     # echo "COL: $COL";
+    # echo "ROWMEDIAN: $ROWMEDIAN";
+    # echo "COLMEDIAN: $COLMEDIAN";
 }
 
+# reads file and prints a sorted version to a tempfile.
 FillFileRow()
 {
     while read line; 
     do
-        echo $( for i in $line; do echo -e "$i\t";done | sort -n ) | tr ' ' '\t' #>> $TEMPFILE
+        echo $( for i in $line; do echo -e "$i\t";done | sort -n ) | tr ' ' '\t' >> $TEMPFILE
     done < $FILE;
 }
 
+# reads file and prints a sorted version to a tempfile.
 FillFileCol()
 {   
     for i in $(seq 1 $COL); 
@@ -38,6 +60,7 @@ FillFileCol()
     echo;
 }
 
+#cleans tempfile.
 Cleanup()
 {
     rm $TEMPFILE;
@@ -49,10 +72,25 @@ rows_func()
     DimensionsUtil;
 
     FillFileRow;
-    
 
     echo -e "Average\tMedian";
+    #AVG/Median logic
+    while read line;
+    do
+        Sum=0;
+        TempArr=();
 
+        for i in $line;
+        do
+            Sum=$(($Sum+$i));
+            TempArr+=("$i");
+        done;
+
+        echo -e "$((($Sum +($COL/2))/$COL))\t${TempArr[$ROWMEDIAN]}";
+
+    done < $TEMPFILE;
+
+    Cleanup;
 
 }
 
@@ -76,6 +114,7 @@ then
     echo "$0 {-rows|-cols} [file]" >&2
     exit 1;
 fi
+
 if [[ "$1" == -r* ]]
 then
     rows_func;
