@@ -17,9 +17,8 @@ DimensionsUtil()
 {
     ROW=$(cut -f 1 $FILE | wc -l);
     COL=$(head -n 1 $FILE | tr '\t' '\n' | wc -l);
-
-    echo "ROW: $ROW";
-    echo "COL: $COL";
+    # echo "ROW: $ROW";
+    # echo "COL: $COL";
 }
 
 FillFileRow()
@@ -31,8 +30,12 @@ FillFileRow()
 }
 
 FillFileCol()
-{
-    echo "fuck";
+{   
+    for i in $(seq 1 $COL); 
+    do
+        echo "$(cat $FILE | cut -f $i | sort -n | tr '\n' '\t')"
+    done;
+    echo;
 }
 
 Cleanup()
@@ -44,7 +47,7 @@ rows_func()
 {
     checkValidFile;
     DimensionsUtil;
-    
+
     FillFileRow;
     
 
