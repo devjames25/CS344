@@ -1,6 +1,6 @@
 #!/bin/bash
 FILE=$2
-declare -A FILEARRAY
+TEMPFILE="$$.tmp"
 declare -i ROW=0;
 declare -i COL=0;
 
@@ -13,83 +13,56 @@ checkValidFile()
     fi
 }
 
-#utility for debugging
-printArray()
+FillFileRow()
 {
-    for ((i=0;i<ROW;i++));
-    do
-        for ((j=0;j<COL;j++));
-        do
-            echo ${FILEARRAY[$i,$j]};
-        done;
-    done;
-}
-
-#utility for filling 2d array with data
-FillArr()
-{
-    declare -i numRows=0;
-    declare -i numCols;
     while read line; 
     do
-        numCols=0;
-        for value in $line;
-        do
-            FILEARRAY[$numRows,$numCols]=$value;
-            numCols+=1;
-        done;
-        numRows+=1;
-
-        #setting statics
-        COL=numCols;
-        ROW=numRows;
+        echo $( for i in $line; do echo -e "$i\t";done | sort -n ) #>> $TEMPFILE
     done < $FILE;
+}
+
+FillFileCol()
+{
+ echo fuck;
 }
 
 rows_func() 
 {
     checkValidFile;
-    FillArr;
 
-    #Average logic
-    #variables
+    FillFileRow;
 
-    declare -i total=0;
-
-
-    for ((i=0;i<ROW;i++));
-    do
-        total=0;
-        for ((j=0;j<COL;j++));
-        do
-            total+=${FILEARRAY[$i,$j]};
-        done;
-        #echo $total;
-        echo "AVG:"$(($total/$COL));
-    done;
-
-    #median logic
-    #SortedArr=(for i in $row;do printf "$i"; done | sort -n;)
 
 }
 
 cols_func()
 {
     checkValidFile; 
-    FillArr;
+    
+    FillFileCol;
 
     #Averages logic
 
     #Median logic
 
-    printArray;
+    #printArray;
 }
 
 #Main
-if [ $1 == "-rows" ]; then
+if [ "$#" -gt 2 ] || [ "$#" -lt 1 ]
+then
+    echo "$0 {-rows|-cols} [file]" >&2
+    exit 1;
+fi
+if [[ "$1" == -r* ]]
+then
     rows_func;
-elif [ $1 == "-cols" ]; then
+    exit 0;
+elif [[ "$1" == -c* ]] 
+then
     cols_func;
+    exit 0;
 else
-    echo "./stats {-rows|-cols} [file]"
+    echo "$0 {-rows|-cols} [file]" >&2
+    exit 1;
 fi
