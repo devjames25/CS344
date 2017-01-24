@@ -32,8 +32,8 @@ DimensionsUtil()
     # takes first row, replaces tabs with newline and counts lines for column
     COL=$(head -n 1 $FILE | tr '\t' '\n' | wc -l);
 
-    ROWMEDIAN=$(( ($ROW + 1 )/ 2));
-    COLMEDIAN=$(( ($COL + 1 )/ 2));
+    ROWMEDIAN=$(( ($ROW + (1) )/ 2));
+    COLMEDIAN=$(( ($COL + (0) )/ 2));
 
     # echo "ROW: $ROW";
     # echo "COL: $COL";
@@ -55,9 +55,8 @@ FillFileCol()
 {   
     for i in $(seq 1 $COL); 
     do
-        echo "$(cat $FILE | cut -f $i | sort -n | tr '\n' '\t')"
+        echo "$(cat $FILE | cut -f $i | sort -n | tr '\n' '\t')" >> $TEMPFILE
     done;
-    echo;
 }
 
 #cleans tempfile.
@@ -101,11 +100,33 @@ cols_func()
 
     FillFileCol;
 
-    #Averages logic
+    AVGstring="";
+    MedianString="";
 
-    #Median logic
+    #AVG/Median logic
+    while read line;
+    do
+        Sum=0;
+        TempArr=();
 
-    #printArray;
+        for i in $line;
+        do
+            Sum=$(($Sum+$i));
+            TempArr+=("$i");
+        done;
+
+        AVGstring+="$((($Sum +($ROW/2))/$ROW))\t"
+        MedianString+="${TempArr[$COLMEDIAN]}\t";
+
+    done < $TEMPFILE;
+
+    #printing out lines
+    echo "Averages:";
+    echo -e $AVGstring;
+    echo "Medians:"
+    echo -e $MedianString;
+
+    Cleanup;
 }
 
 #Main
