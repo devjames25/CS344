@@ -9,22 +9,46 @@
 #RUN TIME CONSTANTS
 FILE=$2
 TEMPFILE="$$.tmp"
+TEMPINPUTFILE="$$_stdin.tmp"
 declare -i ROW=0;
 declare -i COL=0;
 declare -i ROWMEDIAN;
 declare -i COLMEDIAN;
 
-#Checks if File can be found in current directory
-#or specified directory.
+trap Cleanup INT HUP TERM EXIT;
+
+#desc: checks file for existing, permissions, etc.
 checkValidFile()
 {
-    if [ ! -f $FILE ]; then
-        echo "$0 cannot read $FILE";
+    #check if file exists
+    if [[ ! -e $FILE ]];then
+        #read stdin if no file specified
+        if [[ "$2" == "" ]];then
+            FILE="$TEMPINPUTFILE";
+            while read line;
+            do
+                echo "$line" >> $FILE;
+            done < ${1:-/dev/stdin};
+        #error if file DNE
+        elif [[ "$2" != "" ]];then
+            echo "$0 cannot find $FILE" >&2;
+            exit 1;
+        fi
+    #cannot read file 
+    elif [[ ! -r $FILE && ! -z $FILE ]];then
+        echo "$0 cannot read $FILE" >&2;
+        exit 1;
+    #permission to read file denied
+    elif [[ ! -r $FILE ]];then
+        echo "$0 read permission denied for $FILE" >&2;
         exit 1;
     fi
+
+
+
 }
 
-#Utility for setting run time constants
+# desc: Utility for setting run time constants
 DimensionsUtil()
 {
     # takes first column and counts lines for row
@@ -32,8 +56,17 @@ DimensionsUtil()
     # takes first row, replaces tabs with newline and counts lines for column
     COL=$(head -n 1 $FILE | tr '\t' '\n' | wc -l);
 
+    #computes ROWMEDIAN number
     ROWMEDIAN=$(( ($ROW + (1) )/ 2));
+    if [[ $ROWMEDIAN -lt 0 ]];then
+        $ROWMEDIAN=0;
+    fi
+
+    #computes COLMEDIAN number
     COLMEDIAN=$(( ($COL + (0) )/ 2));
+    if [[ $COLMEDIAN -lt 0 ]];then
+        $COLMEDIAN=0;
+    fi
 
     # echo "ROW: $ROW";
     # echo "COL: $COL";
@@ -41,30 +74,46 @@ DimensionsUtil()
     # echo "COLMEDIAN: $COLMEDIAN";
 }
 
-# reads file and prints a sorted version to a tempfile.
+#desc: reads file and prints a sorted version to a tempfile.
 FillFileRow()
 {
+    #creates tempfile.
+    touch $TEMPFILE;
     while read line; 
     do
+        #reads in each row sorts then places in TEMPFILE
         echo $( for i in $line; do echo -e "$i\t";done | sort -n ) | tr ' ' '\t' >> $TEMPFILE
     done < $FILE;
 }
 
-# reads file and prints a sorted version to a tempfile.
+#desc: reads file and prints a sorted version to a tempfile.
 FillFileCol()
 {   
+    #creates tempfile
+    touch $TEMPFILE;
     for i in $(seq 1 $COL); 
     do
+        #reads in the file, gets a column, sorts the column,
+        #reformates the column into a row, places in tempfile
         echo "$(cat $FILE | cut -f $i | sort -n | tr '\n' '\t')" >> $TEMPFILE
     done;
 }
 
-#cleans tempfile.
+#desc: cleans tempfiles.
 Cleanup()
 {
-    rm $TEMPFILE;
+    #if tempfile exists delete
+    if [[ -e $TEMPFILE ]];then
+        rm -f "$TEMPFILE";
+    fi
+    #if inputfile exists delete
+    if [[ -e "$TEMPINPUTFILE" ]];then
+        rm -f "$TEMPINPUTFILE";
+    fi
 }
 
+#Desc:Function that fills tempfiles and computes AVG/Median
+#then prints out back to user with Cleanup
 rows_func() 
 {
     checkValidFile;
@@ -85,6 +134,7 @@ rows_func()
             TempArr+=("$i");
         done;
 
+        #printing out AVG and Median
         echo -e "$((($Sum +($COL/2))/$COL))\t${TempArr[$ROWMEDIAN]}";
 
     done < $TEMPFILE;
@@ -93,6 +143,8 @@ rows_func()
 
 }
 
+# Desc:Function that fills tempfiles and computes AVG/Median
+#then prints out back to user with Cleanup
 cols_func()
 {
     checkValidFile; 
@@ -129,17 +181,19 @@ cols_func()
     Cleanup;
 }
 
-#Main
-if [ "$#" -gt 2 ] || [ "$#" -lt 1 ]
+#Main##############################################
+#checks amount of inputs given in command line
+if [ "$#" -gt 2 ] || [ "$#" -eq 0 ]
 then
     echo "$0 {-rows|-cols} [file]" >&2
     exit 1;
 fi
-
+#checks if row tag is specified
 if [[ "$1" == -r* ]]
 then
     rows_func;
     exit 0;
+#checks if col tag is specified
 elif [[ "$1" == -c* ]] 
 then
     cols_func;
@@ -148,3 +202,4 @@ else
     echo "$0 {-rows|-cols} [file]" >&2
     exit 1;
 fi
+####################################################
