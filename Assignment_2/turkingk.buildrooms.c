@@ -9,7 +9,21 @@
 #define MAX_ROOM_CONNECTIONS 6
 #define MAX_NUM_ROOMS 7
 #define TOTAL_NUM_ROOMS 10
+
 typedef enum {FALSE = 0, TRUE = 1} boolean;
+
+const char *ROOM_NAMES[TOTAL_NUM_ROOMS] = {
+        "Dixon Rec Center",
+        "Memorial Union",
+        "Valley Library",
+        "Reser Stadium",
+        "DearBorn Hall",
+        "Rogers Hall",
+        "Kearney",
+        "Kelly Engineering",
+        "Buxton Dorm",
+        "West Dining"
+    };
 //END_GLOBALS
 
 enum ROOM_TYPES{
@@ -26,21 +40,9 @@ struct ROOM
     char Name[];
 };
 
-const char *ROOM_NAMES[TOTAL_NUM_ROOMS] = {
-        "Dixon Rec Center",
-        "Memorial Union",
-        "Valley Library",
-        "Reser Stadium",
-        "DearBorn Hall",
-        "Rogers Hall",
-        "Kearney",
-        "Kelly Engineering",
-        "Buxton Dorm",
-        "West Dining"
-    };
-
-//Struct GLOBALS
+//ROOM GLOBAL
 struct ROOM RoomList[MAX_NUM_ROOMS];
+
 
 boolean IsAllRoomMinConnectionsValid()
 {
@@ -54,7 +56,7 @@ boolean IsAllRoomMinConnectionsValid()
     return TRUE;
 }
 
-boolean IsNumRoomConnectionsMaxed(int RoomPos)
+boolean IsNumRoomConnectionsNotMaxed(int RoomPos)
 {
     if(RoomList[RoomPos].Name == NULL){
         return FALSE;
@@ -78,7 +80,7 @@ boolean IsAlreadyConnected(int RoomPos1, int RoomPos2)
     return TRUE;
 }
 
-boolean HasConnection(int RoomPos1, int RoomPos2)
+boolean IsNotConnected(int RoomPos1, int RoomPos2)
 {
     if(IsAlreadyConnected(RoomPos1,RoomPos2)){
         return FALSE;
@@ -94,7 +96,40 @@ boolean HasConnection(int RoomPos1, int RoomPos2)
     }
 }
 
+int RandomPickRoom()
+{
+    int RoomPos;
 
+    do
+    {
+        RoomPos = rand() % 10;
+    }
+    while(IsNumRoomConnectionsNotMaxed(RoomPos) == FALSE);
+
+    return RoomPos;
+}
+
+void RandomConnectTwoRooms()
+{
+    boolean connected = FALSE;
+    int Room1,Room2;
+
+    do
+    {
+        Room1 = RandomPickRoom();
+        Room2 = RandomPickRoom();
+
+        if(IsNotConnected(Room1,Room2)){
+            RoomList[Room1].Connections[RoomList[Room1].TotalConnections] = &RoomList[Room2];
+            RoomList[Room2].Connections[RoomList[Room2].TotalConnections] = &RoomList[Room1];
+            RoomList[Room1].TotalConnections++;
+            RoomList[Room2].TotalConnections++;
+            connected = TRUE;
+        }
+    }
+    while(connected == FALSE);
+
+}
 
 // NAME: ConstructRoom
 // DESC: like a class constructor this function inializes
