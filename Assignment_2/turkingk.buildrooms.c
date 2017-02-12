@@ -9,10 +9,24 @@
 #define MAX_ROOM_CONNECTIONS 6
 #define MAX_NUM_ROOMS 7
 #define TOTAL_NUM_ROOMS 10
-typedef enum {FALSE = 0, TRUE} boolean;
+typedef enum {FALSE = 0, TRUE = 1} boolean;
 //END_GLOBALS
 
-const char *ROOM_NAMES[10] = {
+enum ROOM_TYPES{
+    START_ROOM,
+    MID_ROOM,
+    END_ROOM
+};
+
+struct ROOM 
+{
+    int TotalConnections;
+    struct ROOM* Connections[MAX_ROOM_CONNECTIONS];
+    enum ROOM_TYPES RType;
+    char Name[];
+};
+
+const char *ROOM_NAMES[TOTAL_NUM_ROOMS] = {
         "Dixon Rec Center",
         "Memorial Union",
         "Valley Library",
@@ -25,18 +39,62 @@ const char *ROOM_NAMES[10] = {
         "West Dining"
     };
 
-enum ROOM_TYPES{
-    START_ROOM,
-    MID_ROOM,
-    END_ROOM
-};
+//Struct GLOBALS
+struct ROOM RoomList[MAX_NUM_ROOMS];
 
-struct ROOM 
+boolean IsAllRoomMinConnectionsValid()
 {
-    struct ROOM* Connections[MAX_ROOM_CONNECTIONS];
-    enum ROOM_TYPES RType;
-    char Name[];
-};
+    for(int i = 0; i < MAX_NUM_ROOMS;i++){
+        if(RoomList[i].TotalConnections < MIN_ROOM_CONNECTIONS
+            && RoomList[i].TotalConnections <= MAX_ROOM_CONNECTIONS)
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+boolean IsNumRoomConnectionsMaxed(int RoomPos)
+{
+    if(RoomList[RoomPos].Name == NULL){
+        return FALSE;
+    }
+    else if(RoomList[RoomPos].TotalConnections > MAX_ROOM_CONNECTIONS){
+        return FALSE;
+    }
+    else{
+        return TRUE;
+    }
+}
+
+boolean IsAlreadyConnected(int RoomPos1, int RoomPos2)
+{
+    for(int i = 0; i < MAX_NUM_ROOMS;i++){
+        if(RoomList[RoomPos1].Connections[i]->Name == RoomList[RoomPos2].Name)
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+boolean HasConnection(int RoomPos1, int RoomPos2)
+{
+    if(IsAlreadyConnected(RoomPos1,RoomPos2)){
+        return FALSE;
+    }
+    else if(RoomList[RoomPos1].Name == NULL || RoomList[RoomPos2].Name == NULL){
+        return FALSE;
+    }
+    else if(RoomList[RoomPos1].Name == RoomList[RoomPos2].Name){
+        return FALSE;
+    }
+    else{
+        return TRUE;
+    }
+}
+
+
 
 // NAME: ConstructRoom
 // DESC: like a class constructor this function inializes
@@ -50,12 +108,7 @@ struct ROOM ConstructRoom(char Nam[],enum ROOM_TYPES Type)
     return construct;
 }
 
-struct ROOM InitilizeRooms(){
-    struct ROOM start = {};
-    struct ROOM end = {};
 
-    return start;
-}
 
 
 int main()
