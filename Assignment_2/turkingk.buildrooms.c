@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
 
 //GLOBALS
 #define MIN_ROOM_CONNECTIONS 3
@@ -14,16 +18,16 @@ typedef enum {FALSE = 0, TRUE = 1} boolean;
 
 
 char *ROOM_NAMES[TOTAL_NUM_ROOMS] = {
-        "Dixon Rec Center",
-        "Memorial Union",
-        "Valley Library",
-        "Reser Stadium",
-        "DearBorn Hall",
-        "Rogers Hall",
+        "Dixon_Rec_Center",
+        "Memorial_Union",
+        "Valley_Library",
+        "Reser_Stadium",
+        "DearBorn_Hall",
+        "Rogers_Hall",
         "Kearney",
-        "Kelly Engineering",
-        "Buxton Dorm",
-        "West Dining"
+        "Kelly_Engineering",
+        "Buxton_Dorm",
+        "West_Dining"
     };
 //END_GLOBALS
 
@@ -50,6 +54,7 @@ struct ROOM
 //ROOM GLOBAL
 struct ROOM RoomList[MAX_NUM_ROOMS];
 boolean InitializedRooms[TOTAL_NUM_ROOMS];
+char folderName[256];
 
 ///NAME: IsAllRoomMinConnectionsValid
 ///DESC: checks if all connections in RoomList
@@ -202,7 +207,7 @@ void InitRoomList()
             int RandomRoom = RandomPickRoom();
             if(InitializedRooms[RandomRoom] == FALSE){
                 InitializedRooms[RandomRoom] = TRUE;
-
+                memset(RoomList[i].Name,'\0',sizeof(RoomList[i].Name));
                 strcpy(RoomList[i].Name,ROOM_NAMES[RandomRoom]);
                 RoomList[i].RType = MID_ROOM;
                 break;
@@ -215,13 +220,11 @@ void InitRoomList()
 
 int RandomNumInRange(int min,int max){
     int Rando;
-    // while(TRUE){
-    //     Rando = rand() % MAX_ROOM_CONNECTIONS + MIN_ROOM_CONNECTIONS;
-    //     if(Rando <= MAX_ROOM_CONNECTIONS
-    //         && Rando >= MIN_ROOM_CONNECTIONS ){
-    //             break;
-    //         }
-    // }
+    do{
+        Rando = rand() % max + min;
+    }
+    while(Rando > max || Rando < min);
+
     return Rando;
 }
 
@@ -231,6 +234,7 @@ void FillRoomList()
     int MaxConnectionsForRoom = MIN_ROOM_CONNECTIONS;
     int i,j;
     for(i = 0;i < MAX_NUM_ROOMS;i++ ){
+        //ConnectionsForRoom = RandomNumInRange(2,MIN_ROOM_CONNECTIONS);
         for(j = 0;j < MaxConnectionsForRoom;j++){
             RandomConnectARoom(i);
         }
@@ -256,6 +260,26 @@ void PrintRooms_DEBUG()
     printf("\n");
 }
 
+void GenRoomDir()
+{
+    char* staticDirName = "turkingk.rooms.";
+    int pid = getpid();
+    //CHANGE TO 777 on os-class;
+    int ModeratlyecPermissionSetting = 770;// rwxrwx---
+    int unsecPermissionSetting = 777; // rwxrwxrwx
+
+    memset(folderName,'\0',sizeof(folderName));
+    sprintf(folderName,"%s%d",staticDirName,pid);
+
+    printf("%s",folderName);
+    mkdir(folderName,ModeratlyecPermissionSetting);
+}
+
+void GenRoomFiles()
+{
+    
+}
+
 
 int main()
 {
@@ -263,5 +287,6 @@ int main()
     //InitRoomList();
     FillRoomList();
     PrintRooms_DEBUG();
+    GenRoomDir();
     return 0;
 }
