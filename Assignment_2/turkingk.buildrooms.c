@@ -57,7 +57,8 @@ boolean InitializedRooms[TOTAL_NUM_ROOMS];
 ///      MAX_ROOM_CONNECTIONS
 boolean IsAllRoomMinConnectionsValid()
 {
-    for(int i = 0; i < MAX_NUM_ROOMS;i++){
+    int i;
+    for(i = 0; i < MAX_NUM_ROOMS;i++){
         if(RoomList[i].TotalConnections < MIN_ROOM_CONNECTIONS)
         {
             return FALSE;
@@ -78,10 +79,12 @@ boolean IsNumRoomConnectionsNotMaxed(int RoomPos)
 
 boolean IsAlreadyConnected(int RoomPos1, int RoomPos2)
 {
+    int i;
+
     if(RoomList[RoomPos1].TotalConnections == MAX_ROOM_CONNECTIONS){
         return TRUE;
     }
-    for(int i = 0; i < RoomList[RoomPos1].TotalConnections;i++){
+    for(i = 0; i < RoomList[RoomPos1].TotalConnections;i++){
         if(RoomList[RoomPos1].Connections[i] == NULL ){
             return FALSE;
         }
@@ -118,9 +121,24 @@ int RandomPickRoom()
     return RoomPos;
 }
 
+int RandomRoomWithinRange(int min,int max)
+{
+    int RoomPos;
+
+    do
+    {
+        RoomPos = rand() % max + min;
+    }
+    while(IsNumRoomConnectionsNotMaxed(RoomPos) == FALSE
+            && RoomPos <= max
+            && RoomPos >= min);
+    return RoomPos;
+}
+
 
 int FindNullConnectionPos(int Room1){
-    for(int i =0; i < MAX_ROOM_CONNECTIONS -1;i++){
+    int i;
+    for(i = 0; i < MAX_ROOM_CONNECTIONS -1;i++){
         if(RoomList[Room1].Connections[i] == NULL
             ||RoomList[Room1].Connections[i]->Name == NULL ){
             return i;
@@ -146,14 +164,11 @@ void RandomConnectARoom(int RoomPos)
     do
     {
         Room1 = RoomPos;
-        Room2 = RandomPickRoom();
-
+        Room2 = RandomRoomWithinRange(0,MAX_NUM_ROOMS);
 
         if(IsConnected(Room1,Room2) == FALSE){
             int conc1 = RoomList[Room1].TotalConnections;
             int conc2 = RoomList[Room2].TotalConnections;
-            //int conc1 = FindNullConnectionPos(Room1);
-            //int conc2 = FindNullConnectionPos(Room2);
 
             RoomList[Room1].Connections[conc1] = &RoomList[Room2];
             RoomList[Room2].Connections[conc2] = &RoomList[Room1];
@@ -166,19 +181,20 @@ void RandomConnectARoom(int RoomPos)
 }
 
 void initRoomConnections(int RoomNum){
-    for(int i = 0; i < MAX_ROOM_CONNECTIONS; i++){
+    int i;
+    for(i = 0; i < MAX_ROOM_CONNECTIONS; i++){
             RoomList[RoomNum].Connections[i] = NULL;
     }
 }
 
 void InitRoomList()
 {
-    
-    for(int i = 0; i < MAX_NUM_ROOMS;i++){
+    int i;   
+    for(i = 0; i < MAX_NUM_ROOMS;i++){
         InitializedRooms[i] = FALSE;
     }
 
-    for(int i = 0; i < MAX_NUM_ROOMS;i++){
+    for(i = 0; i < MAX_NUM_ROOMS;i++){
         RoomList[i].TotalConnections = 0;
         initRoomConnections(i);
     
@@ -197,15 +213,15 @@ void InitRoomList()
     RoomList[MAX_NUM_ROOMS - 1].RType = END_ROOM;
 }
 
-int ValidRandomConnectionNum(){
-    int Rando = MIN_ROOM_CONNECTIONS;
-    while(TRUE){
-        Rando = rand() % MAX_ROOM_CONNECTIONS + MIN_ROOM_CONNECTIONS;
-        if(Rando <= MAX_ROOM_CONNECTIONS
-            && Rando >= MIN_ROOM_CONNECTIONS ){
-                break;
-            }
-    }
+int RandomNumInRange(int min,int max){
+    int Rando;
+    // while(TRUE){
+    //     Rando = rand() % MAX_ROOM_CONNECTIONS + MIN_ROOM_CONNECTIONS;
+    //     if(Rando <= MAX_ROOM_CONNECTIONS
+    //         && Rando >= MIN_ROOM_CONNECTIONS ){
+    //             break;
+    //         }
+    // }
     return Rando;
 }
 
@@ -213,10 +229,9 @@ void FillRoomList()
 {
     InitRoomList();
     int MaxConnectionsForRoom = MIN_ROOM_CONNECTIONS;
-    for(int i = 0;i < MAX_NUM_ROOMS;i++ ){
-        //MaxConnectionsForRoom = ValidRandomConnectionNum() ;
-        //printf("%d: Connections: %d\n",i,MaxConnectionsForRoom);
-        for(int j = 0;j < MaxConnectionsForRoom;j++){
+    int i,j;
+    for(i = 0;i < MAX_NUM_ROOMS;i++ ){
+        for(j = 0;j < MaxConnectionsForRoom;j++){
             RandomConnectARoom(i);
         }
     }
@@ -224,13 +239,14 @@ void FillRoomList()
 
 void PrintRooms_DEBUG()
 {
-    for(int i = 0; i < MAX_NUM_ROOMS;i++){
+    int i,j;
+    for(i = 0; i < MAX_NUM_ROOMS;i++){
         printf("\n%d: ",i);
         printf("Name: %s",RoomList[i].Name);
         printf("\nTotalConnections: %d",RoomList[i].TotalConnections);
         if(RoomList[i].TotalConnections > 0){
             printf("\n\tConnections:");
-            for(int j = 0;j < RoomList[i].TotalConnections;j++){
+            for(j = 0;j < RoomList[i].TotalConnections;j++){
                 printf("\n\tC%d:%s",j,RoomList[i].Connections[j]->Name);
                 printf("\n\tC%d connectTotal: %d",j,RoomList[i].Connections[j]->TotalConnections);
             }
