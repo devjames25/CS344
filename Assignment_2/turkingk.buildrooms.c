@@ -255,6 +255,16 @@ void PrintRooms_DEBUG()
                 printf("\n\tC%d connectTotal: %d",j,RoomList[i].Connections[j]->TotalConnections);
             }
         }
+        
+        if(RoomList[i].RType == START_ROOM){
+            printf("\nRoom Type: START_ROOM");
+        }
+        else if(RoomList[i].RType == END_ROOM){
+            printf("\nRoom Type: END_ROOM");
+        }
+        else{
+            printf("\nRoom Type: MID_ROOM");
+        }
         printf("\n");
     }
     printf("\n");
