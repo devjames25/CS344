@@ -264,29 +264,63 @@ void GenRoomDir()
 {
     char* staticDirName = "turkingk.rooms.";
     int pid = getpid();
-    //CHANGE TO 777 on os-class;
-    int ModeratlyecPermissionSetting = 770;// rwxrwx---
-    int unsecPermissionSetting = 777; // rwxrwxrwx
+    int ModeratlyecPermissionSetting = 0770;// rwxrwx---
+    int unsecPermissionSetting = 0777; // rwxrwxrwx EXTREMELY UNSAFE
 
     memset(folderName,'\0',sizeof(folderName));
     sprintf(folderName,"%s%d",staticDirName,pid);
 
-    printf("%s",folderName);
+    //printf("%s",folderName);
     mkdir(folderName,ModeratlyecPermissionSetting);
 }
 
 void GenRoomFiles()
 {
+    FILE *roomFile;
+    int i,j;
+    char folderDIR[256];
+
+    sprintf(folderDIR,"./turkingk.rooms.%d",getpid());
+
+    GenRoomDir();
     
+    if(chdir(folderDIR) != 0){
+        printf("DIR NOT CHANGED TO: %s\n",folderDIR);
+        return;
+    }
+
+    for(i = 0; i < MAX_NUM_ROOMS; i++){
+        //no conflicts should happen since the directory was 
+        //dynamically generated.
+        roomFile = fopen(RoomList[i].Name,"w");
+        
+        fprintf(roomFile,"ROOM NAME: %s\n",RoomList[i].Name);
+        for(j = 0;j < RoomList[i].TotalConnections;j++){
+            fprintf(roomFile,"CONNECTION %d: %s\n",j+1,RoomList[i].Connections[j]->Name);
+        }
+        
+        if(RoomList[i].RType == START_ROOM){
+            fprintf(roomFile,"ROOM TYPE: %s\n","START_ROOM");
+        }
+        else if(RoomList[i].RType == MID_ROOM){
+            fprintf(roomFile,"ROOM TYPE: %s\n","MID_ROOM");
+        }
+        else if(RoomList[i].RType == END_ROOM){
+            fprintf(roomFile,"ROOM TYPE: %s\n","END_ROOM");
+        }
+        else{
+            fprintf(roomFile,"ROOM TYPE: %s\n","NULL");
+        }
+        fclose(roomFile);
+    }
 }
 
 
 int main()
 {
     srand(time(NULL));
-    //InitRoomList();
     FillRoomList();
-    PrintRooms_DEBUG();
-    GenRoomDir();
+    //PrintRooms_DEBUG();
+    GenRoomFiles();
     return 0;
 }
