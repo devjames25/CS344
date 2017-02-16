@@ -221,6 +221,69 @@ int FindStartRoomPos(){
     return -1;
 }
 
+void printStepPath(int *Path,int steps)
+{
+    int i;
+    for(i = 0;i < steps + 1;i++){
+        printf("%s\n",RoomList[Path[i]].Name);
+    }
+}
+
+void RunGame()
+{
+    int currStep = 0;
+    int stepRecord[1028];
+    int currRoomPos,i;
+    boolean MatchedToRoom = FALSE;
+    struct ROOM currRoom;
+    char InputBuffer[256];
+
+    stepRecord[currStep] = FindStartRoomPos();
+
+    do{
+        currRoomPos = stepRecord[currStep];
+        currRoom = RoomList[currRoomPos];
+        printf("CURRENT LOCATION: %s\n",currRoom.Name);
+
+        printf("POSSIBLE CONNECTIONS:");
+        for(i = 0; i < currRoom.TotalConnections - 1; i++){
+            printf(" %s,",currRoom.Connections[i]->Name);
+        }
+        printf(" %s.\n",currRoom.Connections[i]->Name);//NOTE: i is post dec
+
+        memset(InputBuffer,'\0',sizeof(InputBuffer));
+        printf("WHERE TO? >");
+        scanf("%255s",InputBuffer);
+        printf("\n");
+
+        MatchedToRoom = FALSE;
+        for(i = 0; i < currRoom.TotalConnections; i++){
+            if(strcmp(InputBuffer,currRoom.Connections[i]->Name) == 0){
+                ++currStep;
+                stepRecord[currStep] = FindRoomPosFromName(InputBuffer);
+                currRoomPos = stepRecord[currStep];
+                currRoom = RoomList[currRoomPos];
+                MatchedToRoom = TRUE;
+                if(currRoom.RType == END_ROOM){
+                    printf("YOU HAVE FOUND THE END ROOM. CONGRATULATIONS!\n");
+                    printf("YOU TOOK %d STEPS. YOUR PATH TO VICTORY WAS:\n",currStep + 1);
+                    printStepPath(stepRecord,currStep);
+                    return;
+                }
+            }
+        }
+
+        if(strcmp(InputBuffer,"time") == 0 && MatchedToRoom == FALSE){
+            printf("TIME FUNCTION NOT DONE YET.\n\n");
+        }
+        else if(MatchedToRoom == FALSE){
+            printf("HUH? I DON’T UNDERSTAND THAT ROOM. TRY AGAIN.\n\n");
+        }
+    }
+    while(TRUE);
+
+}
+
 void PrintRooms_DEBUG()
 {
     int i,j;
@@ -254,5 +317,7 @@ int main()
 {
     SelectFolder();
     ReCreateStructRooms();
-    PrintRooms_DEBUG();
+
+    RunGame();
+    //PrintRooms_DEBUG();
 }
