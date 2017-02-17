@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
+#include <pthread.h>
 
 #define MIN_ROOM_CONNECTIONS 3
 #define MAX_ROOM_CONNECTIONS 6
@@ -31,8 +32,10 @@ struct ROOM
 //End Type definitions
 
 //Globals
+char *TimeFileName = "currentTime.txt";
 char FolderName[256];
 struct ROOM RoomList[MAX_NUM_ROOMS];
+pthread_mutex_t TimeFile_Mutex;
 //End Globals
 
 void ClearFolderNameGlobal()
@@ -204,9 +207,7 @@ void ReCreateStructRooms()
                 //printf("Room CONNECTION:%s,%d\n",FileValueBuffer,conncRoomPos);
             }
         }
-
         fclose(RoomFile);//END FILE
-
     }
     chdir("..");
 }
@@ -228,6 +229,64 @@ void printStepPath(int *Path,int steps)
         printf("%s\n",RoomList[Path[i]].Name);
     }
 }
+
+//http://stackoverflow.com/questions/5141960/get-the-current-time-in-c
+void* CreateCurrentTimeFile()
+{
+    char TimeStr[256];
+    time_t CurrTime;
+    struct tm * TimeInfo;
+    FILE *TimeFile;
+
+    memset(TimeStr,'\0',sizeof(TimeStr));
+
+    time(&CurrTime);
+    TimeInfo = localtime(&CurrTime);
+    strftime(TimeStr,256, "%I:%M%P %A, %B %d, %Y", TimeInfo);
+    //printf("\n%s\n\n",TimeStr);
+
+    TimeFile = fopen(TimeFileName,"w");//Will create or overwrite a file
+    fprintf(TimeFile,"%s\n",TimeStr);
+    fclose(TimeFile);
+
+    return NULL;
+}
+
+void ReadCurrentTimeFile()
+{
+    char Buffer[256];
+    FILE *TimeFile;
+
+    memset(Buffer,'\0',sizeof(Buffer));
+
+    TimeFile = fopen(TimeFileName,"r");
+    if(TimeFile == NULL){
+        printf("%s was not accessed.\n",TimeFileName);
+        return;
+    }
+
+    while(fgets(Buffer,256,TimeFile) != NULL){
+        printf("%s\n",Buffer);
+    }
+    fclose(TimeFile);
+}
+
+void TimeThread()
+{
+    pthread_t WriteTimeFile_Thread;
+    pthread_mutex_lock(&TimeFile_Mutex);
+
+    if(pthread_create(&WriteTimeFile_Thread,NULL,CreateCurrentTimeFile,NULL) != 0){
+        printf("Error from thread!");
+        return;
+    }
+
+    pthread_mutex_unlock(&TimeFile_Mutex);
+    pthread_join(WriteTimeFile_Thread,NULL);
+
+    ReadCurrentTimeFile();
+}
+
 
 void RunGame()
 {
@@ -274,14 +333,14 @@ void RunGame()
         }
 
         if(strcmp(InputBuffer,"time") == 0 && MatchedToRoom == FALSE){
-            printf("TIME FUNCTION NOT DONE YET.\n\n");
+            //printf("TIME FUNCTION NOT DONE YET.\n\n");
+            TimeThread();
         }
         else if(MatchedToRoom == FALSE){
             printf("HUH? I DON’T UNDERSTAND THAT ROOM. TRY AGAIN.\n\n");
         }
     }
     while(TRUE);
-
 }
 
 void PrintRooms_DEBUG()
@@ -313,10 +372,14 @@ void PrintRooms_DEBUG()
     printf("\n");
 }
 
-int main()
+int main(void)
 {
     SelectFolder();
     ReCreateStructRooms();
+
+    // CreateCurrentTimeFile();
+    // ReadCurrentTimeFile();
+    
 
     RunGame();
     //PrintRooms_DEBUG();
