@@ -11,7 +11,9 @@ struct InputObj
     char InputFile[256];
     char OutputFile[256];
     char Command[1028];
-    char *Arguments[128];
+    char *Temp;
+    int NumArgs;
+    char *Arguments[];
 };
 
 int ChangeDirectorysFromHome(char* InputBuffer)
@@ -50,13 +52,32 @@ int ChangeDirectorysFromHome(char* InputBuffer)
     return 0;
 }
 
+bool _IsLeadCharSpecial(char *str)
+{
+    bool IsSpecial = false;
+
+    if(str[0] == '&'){
+        IsSpecial = true;
+    }
+    else if(str[0] == '<'){
+        IsSpecial = true;
+    }
+    else if(str[0] == '>'){
+        IsSpecial = true;
+    }
+
+    return IsSpecial;
+}
+
 struct InputObj ParseInput(char* InputBuffer)
 {
     struct InputObj *Obj = malloc(1 * sizeof(struct InputObj));
     char Buffer[1028];
     char *InputFileName;
     char *OutputFileName;
+    int i;
 
+    Obj->NumArgs = 0;
     InputBuffer[strlen(InputBuffer) -1] = '\0';
 
     if(InputBuffer[strlen(InputBuffer) -1] == '&'){
@@ -69,10 +90,10 @@ struct InputObj ParseInput(char* InputBuffer)
     }
 
     //command
-    memset(Buffer,'\0',sizeof(Buffer));
-    strcpy(Buffer,InputBuffer);
-    strtok(Buffer," ");
-    strcpy(Obj->Command,Buffer);
+    memset(Buffer,'\0',sizeof(Buffer)); // clear Buffer
+    strcpy(Buffer,InputBuffer); //copy buffer
+    strtok(Buffer," "); // grab only command part of input;
+    strcpy(Obj->Command,Buffer); // take command place in new obj.
     printf("Command: %s\n",Obj->Command);
 
     //InputFile Name
@@ -102,6 +123,41 @@ struct InputObj ParseInput(char* InputBuffer)
     //arguments
     memset(Buffer,'\0',sizeof(Buffer));
     strcpy(Buffer,InputBuffer);
+    strtok(Buffer," ");
+    
+    // TODO
+    Temp = strtok(NULL,"");
+    printf("this:::%s\n",Temp);
+
+    if(_IsLeadCharSpecial(Buffer) == false && strtok(NULL,"") != NULL ){
+        printf("that:::%s\n",strtok(NULL,""));
+        
+
+        
+
+        strtok(Buffer,"<>&");
+        printf("SUCCES\n");
+        
+        strtok(Buffer," ");
+        Obj->Arguments[0] = Buffer;
+        Obj->NumArgs = 1;
+        while(strtok(NULL," ") != NULL){
+            
+            Obj->Arguments[Obj->NumArgs] = strtok(NULL," ");
+            Obj->NumArgs++;
+        }
+        Obj->Arguments[Obj->NumArgs] = strtok(NULL, "");        
+    }
+    
+    for(i = 0;i < 1028;i++){
+        if(Obj->Arguments[i] == NULL){
+            Obj->NumArgs = i;
+            break;
+        }
+        printf("arg:%s\n",Obj->Arguments[i]);
+    }
+
+    
 
     return *Obj;
 
