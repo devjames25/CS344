@@ -4,17 +4,74 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+
+#define STACKMAX 64
 
 struct InputObj
 {
     bool Background;
-    char InputFile[256];
-    char OutputFile[256];
+    char InputFile[128];
+    char OutputFile[128];
     char Command[1028];
-    char *Temp;
     int NumArgs;
-    char *Arguments[];
+    char *Arguments[128];
 };
+
+struct PidStackObj
+{
+    int NumForePid;
+    int NumBackPid;
+    pid_t ForegroundPids[STACKMAX];
+    pid_t BackgroundPids[STACKMAX];
+};
+
+//Globals
+struct PidStackObj PidStack;
+//End Globals
+
+void _InitPidObj()
+{
+    int i;
+
+    PidStack.NumForePid = -1;
+    PidStack.NumBackPid = -1;
+
+    for(i = 0; i < STACKMAX; i++){
+        PidStack.ForegroundPids[i] = -1;
+        PidStack.BackgroundPids[i] = -1;
+    }
+}
+
+void PushForePid(pid_t processId)
+{
+    PidStack.ForegroundPids[++(PidStack.NumForePid)] = processId;
+}
+
+pid_t PopForePid()
+{
+    return PidStack.ForegroundPids[PidStack.NumForePid--];
+}
+
+pid_t TopForePid()
+{
+    return PidStack.ForegroundPids[PidStack.NumForePid]; 
+}
+
+void PushBackPid(pid_t processId)
+{
+    PidStack.BackgroundPids[++(PidStack.NumBackPid)] = processId;
+}
+
+pid_t PopBackPid()
+{
+    return PidStack.BackgroundPids[PidStack.NumBackPid--];
+}
+
+pid_t TopBackPid()
+{
+    return PidStack.BackgroundPids[PidStack.NumBackPid];
+}
 
 int ChangeDirectorysFromHome(char* InputBuffer)
 {
@@ -69,12 +126,13 @@ bool _IsLeadCharSpecial(char *str)
     return IsSpecial;
 }
 
-struct InputObj ParseInput(char* InputBuffer)
+void ParseInput(char* InputBuffer,struct InputObj* Obj)
 {
-    struct InputObj *Obj = malloc(1 * sizeof(struct InputObj));
+    //struct InputObj Obj = malloc(1 * sizeof(struct InputObj));
     char Buffer[1028];
     char *InputFileName;
     char *OutputFileName;
+    char *Temp;
     int i;
 
     Obj->NumArgs = 0;
@@ -82,6 +140,7 @@ struct InputObj ParseInput(char* InputBuffer)
 
     if(InputBuffer[strlen(InputBuffer) -1] == '&'){
         Obj->Background = true;
+        InputBuffer[strlen(InputBuffer) -1] = '\0';
         printf("Background: enabled\n");
     }
     else{
@@ -127,50 +186,95 @@ struct InputObj ParseInput(char* InputBuffer)
     
     // TODO
     Temp = strtok(NULL,"");
-    printf("this:::%s\n",Temp);
-
-    if(_IsLeadCharSpecial(Buffer) == false && strtok(NULL,"") != NULL ){
-        printf("that:::%s\n",strtok(NULL,""));
-        
-
-        
-
-        strtok(Buffer,"<>&");
-        printf("SUCCES\n");
+    if(_IsLeadCharSpecial(Buffer) == false && Temp != NULL ){
+        strcpy(Buffer,Temp);
+        strtok(Buffer,"<>&#");
+        //printf("Argument Line:%s\n",Buffer);
         
         strtok(Buffer," ");
         Obj->Arguments[0] = Buffer;
         Obj->NumArgs = 1;
-        while(strtok(NULL," ") != NULL){
+        Temp = strtok(NULL," ");
+        while(Temp != NULL){
             
-            Obj->Arguments[Obj->NumArgs] = strtok(NULL," ");
+            Obj->Arguments[Obj->NumArgs] = Temp;
             Obj->NumArgs++;
+            Temp = strtok(NULL," ");
         }
-        Obj->Arguments[Obj->NumArgs] = strtok(NULL, "");        
+        Obj->Arguments[Obj->NumArgs] = strtok(NULL, "");
+           
     }
     
-    for(i = 0;i < 1028;i++){
-        if(Obj->Arguments[i] == NULL){
-            Obj->NumArgs = i;
-            break;
-        }
-        printf("arg:%s\n",Obj->Arguments[i]);
+    for(i = 0;i < Obj->NumArgs;i++){
+        printf("arg%d:%s\n",i,Obj->Arguments[i]);
     }
 
-    
-
-    return *Obj;
-
+    //return Obj;
 } 
 
-int RunCommand(char* InputBuffer)
+void _InitArgList(struct InputObj* Obj,char** Args)
 {
-    return 0;
+    int i;
+
+    Args[0] = Obj->Command;
+    for(i = 0;i< Obj->NumArgs ;i++){
+        Args[i+1] = Obj->Arguments[i];
+    }
+    Args[i+1] = NULL;
+}
+
+void RunCommand(struct InputObj* Obj)
+{
+    pid_t pid = fork();
+    char *ArgList[128];
+    int ProcessStatus;
+
+    switch(pid)
+    {
+        case -1: //Error
+            //perror("Something went wrong with your fork\n");
+            exit(1);
+            break;
+
+        case 0: //Child
+            _InitArgList(Obj,ArgList);
+            execvp(Obj->Command, ArgList);
+            
+            //perror("Could not find command\n");
+            exit(1);
+            break;
+
+        default: // Parent
+            if(Obj->Background == true){
+                PushBackPid(pid);
+                printf("Background Pid is %d\n",TopBackPid());
+            }
+            else{
+                PushForePid(pid);
+                waitpid(pid,&ProcessStatus,0);
+
+                printf("parent(%d) waiting for child process(%d)\n",getpid() ,TopForePid());
+                PopForePid();
+            }
+            break;
+    }
+}
+
+// SOURCE: https://gist.github.com/leehambley/5589953
+void _ChildExitedHandler(int sig)
+{
+    int ChildStatus;
+
+    pid_t ChildPid = waitpid(0,&ChildStatus,0);
+    printf("background pid %d is done: exit value %d\n",ChildPid,ChildStatus);
+
+
 }
 
 void RunShell()
 {
     char InputBuffer[1028];
+    struct InputObj *Obj;
 
     do
     {
@@ -197,7 +301,11 @@ void RunShell()
         }
         else{
             //read in a command.
-            ParseInput(InputBuffer);
+            Obj = malloc(1 * sizeof(struct InputObj)); 
+            ParseInput(InputBuffer,Obj);
+            RunCommand(Obj);
+
+            free(Obj);//IMPORTANT WITHOUT THIS SIGABRT SIGNAL WILL BE TRIGGERED <<<<<<<<
         }
     }
     while(true);
@@ -206,6 +314,10 @@ void RunShell()
 
 int main(void)
 {
+    signal(SIGCHLD,_ChildExitedHandler);
+
+
+    _InitPidObj();
     RunShell();
     return 0;
 }
