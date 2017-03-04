@@ -98,6 +98,10 @@ bool _IsLeadCharSpecial(char *str)
 {
     bool IsSpecial = false;
 
+    if(str == NULL){
+        return true;
+    }
+
     if(str[0] == '&'){
         IsSpecial = true;
     }
@@ -169,11 +173,11 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
     memset(Buffer,'\0',sizeof(Buffer));
     strcpy(Buffer,InputBuffer);
     strtok(Buffer," ");
-    
-    printf("Argument Line:%s\n",Buffer);
 
     Temp = strtok(NULL,"");
-    if(_IsLeadCharSpecial(Buffer) == false && Temp != NULL ){
+
+    //printf("Temp Line:%s\n",Temp);
+    if(_IsLeadCharSpecial(Temp) == false && Temp != NULL ){ // && _IsLeadCharSpecial(Buffer) == false
         strcpy(Buffer,Temp);
         strtok(Buffer,"<>&#");
 
@@ -193,12 +197,10 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
            
     }
     
-    int i;
-    for(i = 0;i < Obj->NumArgs;i++){
-        printf("arg%d:%s\n",i,Obj->Arguments[i]);
-    }
-
-    //return Obj;
+    // int i;
+    // for(i = 0;i < Obj->NumArgs;i++){
+    //     printf("arg%d:%s\n",i,Obj->Arguments[i]);
+    // }
 }
 
 void _InitArgList(struct InputObj* Obj,char** Args)
