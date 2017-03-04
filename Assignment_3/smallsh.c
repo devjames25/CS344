@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <signal.h>
 
@@ -162,16 +164,20 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
         //printf("Outputfile is:%s\n",Obj->OutputFile);
     }
      
+     //TODO FIX
     //arguments
     memset(Buffer,'\0',sizeof(Buffer));
     strcpy(Buffer,InputBuffer);
     strtok(Buffer," ");
     
+    printf("Argument Line:%s\n",Buffer);
+
     Temp = strtok(NULL,"");
     if(_IsLeadCharSpecial(Buffer) == false && Temp != NULL ){
         strcpy(Buffer,Temp);
         strtok(Buffer,"<>&#");
-        //printf("Argument Line:%s\n",Buffer);
+
+        
         
         strtok(Buffer," ");
         Obj->Arguments[0] = Buffer;
@@ -187,22 +193,57 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
            
     }
     
-    // for(i = 0;i < Obj->NumArgs;i++){
-    //     printf("arg%d:%s\n",i,Obj->Arguments[i]);
-    // }
+    int i;
+    for(i = 0;i < Obj->NumArgs;i++){
+        printf("arg%d:%s\n",i,Obj->Arguments[i]);
+    }
 
     //return Obj;
-} 
+}
 
 void _InitArgList(struct InputObj* Obj,char** Args)
 {
     int i;
 
     Args[0] = Obj->Command;
-    for(i = 0;i< Obj->NumArgs ;i++){
+    for(i = 0;i < Obj->NumArgs ;i++){
         Args[i+1] = Obj->Arguments[i];
     }
+
     Args[i+1] = NULL;
+}
+
+void SetupRedirects(struct InputObj* Obj)
+{
+    int InputFileDescriptor = STDIN_FILENO;
+    int OutputFileDescriptor = STDOUT_FILENO;
+
+    if(Obj->InputFile[0] != '\0'){
+        //printf("INPUT: %s\n",Obj->InputFile);
+        InputFileDescriptor = open(Obj->InputFile,O_RDONLY);
+
+        if(InputFileDescriptor < 0){
+            //perror("Cannot open input file.\n");
+            exit(1);
+        }
+
+        dup2(InputFileDescriptor,0);
+        close(InputFileDescriptor);
+    }
+    if(Obj->OutputFile[0] != '\0'){
+        //printf("OUTPUT: %s\n",Obj->OutputFile);
+        
+        // Can also use creat() func
+        OutputFileDescriptor = open(Obj->OutputFile,O_WRONLY | O_CREAT | O_TRUNC,0644);
+
+        if(OutputFileDescriptor < 0){
+            //perror("Cannot create or open ouput file.\n");
+            exit(1);
+        }
+
+        dup2(OutputFileDescriptor,1);
+        close(OutputFileDescriptor);
+    }
 }
 
 void RunCommand(struct InputObj* Obj)
@@ -219,6 +260,8 @@ void RunCommand(struct InputObj* Obj)
             break;
 
         case 0: //Child
+            SetupRedirects(Obj);
+
             _InitArgList(Obj,ArgList);
             execvp(Obj->Command, ArgList);
             
@@ -295,6 +338,14 @@ void TrapTermSignal(int sig)
     fflush(stdin);  
 }
 
+void FreeAndClearInputObj(struct InputObj* Obj)
+{
+    memset(Obj->InputFile,'\0',sizeof(Obj->InputFile));
+    memset(Obj->OutputFile,'\0',sizeof(Obj->OutputFile));
+    memset(Obj->Command,'\0',sizeof(Obj->Command));
+    free(Obj);//IMPORTANT WITHOUT THIS SIGABRT SIGNAL WILL BE TRIGGERED <<<<<<<<
+}
+
 void RunShell()
 {
     char InputBuffer[1028];
@@ -357,7 +408,7 @@ void RunShell()
             ParseInput(InputBuffer,Obj);
             RunCommand(Obj);
 
-            free(Obj);//IMPORTANT WITHOUT THIS SIGABRT SIGNAL WILL BE TRIGGERED <<<<<<<<
+            FreeAndClearInputObj(Obj);
         }
     }
     while(true);
@@ -365,9 +416,6 @@ void RunShell()
 
 int main(void)
 {
-    //signal(SIGINT,SIG_IGN); // ^C trap
-    signal(SIGTSTP,TrapTermSignal); // ^Z trap
-
     _InitPidObj();
     RunShell();
     return 0;
