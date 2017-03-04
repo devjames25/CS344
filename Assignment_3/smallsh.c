@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #define STACKMAX 64
 
@@ -20,42 +21,24 @@ struct InputObj
 
 struct PidStackObj
 {
-    int NumForePid;
     int NumBackPid;
-    pid_t ForegroundPids[STACKMAX];
     pid_t BackgroundPids[STACKMAX];
 };
 
 //Globals
 struct PidStackObj PidStack;
+pid_t LastForeGroundStatus;
+bool ForegroundOnly = false;
 //End Globals
 
 void _InitPidObj()
 {
     int i;
-
-    PidStack.NumForePid = -1;
     PidStack.NumBackPid = -1;
 
     for(i = 0; i < STACKMAX; i++){
-        PidStack.ForegroundPids[i] = -1;
         PidStack.BackgroundPids[i] = -1;
     }
-}
-
-void PushForePid(pid_t processId)
-{
-    PidStack.ForegroundPids[++(PidStack.NumForePid)] = processId;
-}
-
-pid_t PopForePid()
-{
-    return PidStack.ForegroundPids[PidStack.NumForePid--];
-}
-
-pid_t TopForePid()
-{
-    return PidStack.ForegroundPids[PidStack.NumForePid]; 
 }
 
 void PushBackPid(pid_t processId)
@@ -133,7 +116,7 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
     char *InputFileName;
     char *OutputFileName;
     char *Temp;
-    int i;
+    //int i;
 
     Obj->NumArgs = 0;
     InputBuffer[strlen(InputBuffer) -1] = '\0';
@@ -141,11 +124,11 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
     if(InputBuffer[strlen(InputBuffer) -1] == '&'){
         Obj->Background = true;
         InputBuffer[strlen(InputBuffer) -1] = '\0';
-        printf("Background: enabled\n");
+        //printf("Background: enabled\n");
     }
     else{
         Obj->Background = false;
-        printf("Background: disabled\n");
+        //printf("Background: disabled\n");
     }
 
     //command
@@ -153,7 +136,7 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
     strcpy(Buffer,InputBuffer); //copy buffer
     strtok(Buffer," "); // grab only command part of input;
     strcpy(Obj->Command,Buffer); // take command place in new obj.
-    printf("Command: %s\n",Obj->Command);
+    //printf("Command: %s\n",Obj->Command);
 
     //InputFile Name
     memset(Buffer,'\0',sizeof(Buffer));
@@ -164,7 +147,7 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
         strtok(InputFileName," ");
         InputFileName[strlen(InputFileName)] = '\0';
         strcpy(Obj->InputFile,InputFileName);
-        printf("Inputfile is:%s\n",Obj->InputFile);
+        //printf("Inputfile is:%s\n",Obj->InputFile);
     }
 
     //OutputFile Name;
@@ -176,7 +159,7 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
         strtok(OutputFileName," ");
         OutputFileName[strlen(OutputFileName)] = '\0';
         strcpy(Obj->OutputFile,OutputFileName);
-        printf("Outputfile is:%s\n",Obj->OutputFile);
+        //printf("Outputfile is:%s\n",Obj->OutputFile);
     }
      
     //arguments
@@ -184,7 +167,6 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
     strcpy(Buffer,InputBuffer);
     strtok(Buffer," ");
     
-    // TODO
     Temp = strtok(NULL,"");
     if(_IsLeadCharSpecial(Buffer) == false && Temp != NULL ){
         strcpy(Buffer,Temp);
@@ -205,9 +187,9 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
            
     }
     
-    for(i = 0;i < Obj->NumArgs;i++){
-        printf("arg%d:%s\n",i,Obj->Arguments[i]);
-    }
+    // for(i = 0;i < Obj->NumArgs;i++){
+    //     printf("arg%d:%s\n",i,Obj->Arguments[i]);
+    // }
 
     //return Obj;
 } 
@@ -240,49 +222,112 @@ void RunCommand(struct InputObj* Obj)
             _InitArgList(Obj,ArgList);
             execvp(Obj->Command, ArgList);
             
+            fflush(stderr);
             //perror("Could not find command\n");
+            
+
             exit(1);
             break;
 
         default: // Parent
-            if(Obj->Background == true){
+            if(Obj->Background == true && ForegroundOnly == false){
                 PushBackPid(pid);
                 printf("Background Pid is %d\n",TopBackPid());
             }
             else{
-                PushForePid(pid);
+                
                 waitpid(pid,&ProcessStatus,0);
-
-                printf("parent(%d) waiting for child process(%d)\n",getpid() ,TopForePid());
-                PopForePid();
+                LastForeGroundStatus = ProcessStatus;
+                //printf("parent(%d) waited for child process(%d)\n",getpid() ,pid);
             }
             break;
     }
 }
 
-// SOURCE: https://gist.github.com/leehambley/5589953
-void _ChildExitedHandler(int sig)
+// SOURCE: http://stackoverflow.com/questions/2377811/tracking-the-death-of-a-child-process
+bool _BackGroundPidCompleted()
 {
     int ChildStatus;
+    int i;
 
-    pid_t ChildPid = waitpid(0,&ChildStatus,0);
-    printf("background pid %d is done: exit value %d\n",ChildPid,ChildStatus);
+    bool BGProcessReturned = false;
 
+    for(i = 0; i < PidStack.NumBackPid + 1; i++){
+        waitpid(PidStack.BackgroundPids[i], &ChildStatus, WNOHANG);
 
+        if(WEXITSTATUS(ChildStatus)){
+            printf("Background pid %d is done: exit value %d\n",PopBackPid(),WEXITSTATUS(ChildStatus));
+            fflush(stdout);
+            fflush(stdin);
+
+            BGProcessReturned = true;
+        }
+        else{
+            printf("Background pid %d is done: terminated by signal %d\n", PopBackPid(), WTERMSIG(ChildStatus));
+            fflush(stdout);
+            fflush(stdin);
+
+            BGProcessReturned = true;
+        }
+    }
+    return BGProcessReturned;
+}
+
+//SOURCE: https://piazza.com/class/ixhzh3rn2la6vk?cid=365
+void TrapStopSignal(int sig)
+{
+    if(ForegroundOnly == false){
+        char* message = ("\nEntering foreground-only mode (& is now ignored)\n");
+        write(STDOUT_FILENO, message, 50);
+        ForegroundOnly = true;
+    }
+    else{
+        char* message = "\nExiting foreground-only mode\n";
+        write(STDOUT_FILENO, message, 31);
+        ForegroundOnly = false;
+    }
+}
+
+void TrapTermSignal(int sig)
+{
+    printf("\nterminated by signal %d\n",sig); 
+    fflush(stdout);
+    fflush(stdin);  
 }
 
 void RunShell()
 {
     char InputBuffer[1028];
     struct InputObj *Obj;
+    int ForegroundStatus;
+
+    //init signals
+    struct sigaction StopSignal;
+    StopSignal.sa_handler = TrapStopSignal;
+    StopSignal.sa_flags = 0;
+
+    struct sigaction TermSignal;
+    TermSignal.sa_handler = TrapTermSignal;
+    StopSignal.sa_flags = 0;
+    //end init signals
 
     do
     {
+        sigaction(SIGTSTP,&StopSignal,NULL);
+        sigaction(SIGINT,&TermSignal,NULL);
+        
+
+        if(_BackGroundPidCompleted() == true){
+            continue;
+        }
+
         fflush(stdout);
         fflush(stdin);
 
         printf(": ");
         fgets(InputBuffer,1028,stdin);
+        
+        fflush(stdout);
         fflush(stdin);
 
         if(strncmp(InputBuffer,"exit",4) == 0){
@@ -297,7 +342,14 @@ void RunShell()
             ChangeDirectorysFromHome(InputBuffer);
         }
         else if(strncmp(InputBuffer,"status",6) == 0){
-            printf("exit value %d\n",9000);
+            if(WEXITSTATUS(LastForeGroundStatus)){
+                ForegroundStatus = WEXITSTATUS(LastForeGroundStatus);
+            }
+            else{
+                ForegroundStatus = WTERMSIG(LastForeGroundStatus);
+            }
+
+            printf("exit value %d\n",ForegroundStatus);
         }
         else{
             //read in a command.
@@ -311,11 +363,10 @@ void RunShell()
     while(true);
 }
 
-
 int main(void)
 {
-    signal(SIGCHLD,_ChildExitedHandler);
-
+    //signal(SIGINT,SIG_IGN); // ^C trap
+    signal(SIGTSTP,TrapTermSignal); // ^Z trap
 
     _InitPidObj();
     RunShell();
