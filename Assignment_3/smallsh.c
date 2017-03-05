@@ -28,7 +28,7 @@ struct InputObj
     char OutputFile[128];
     char Command[1028];
     int NumArgs;
-    char *Arguments[128];
+    char *Arguments[512];
 };
 
 
@@ -102,6 +102,16 @@ pid_t TopBackPid()
     return PidStack.BackgroundPids[PidStack.NumBackPid];
 }
 
+/// NAME: KillBGProcesses
+/// DESC: helper function for exting.
+void KillBGProcesses()
+{
+    int i;
+    for(i = 0;i < PidStack.NumBackPid + 1;i++){
+        kill(PidStack.BackgroundPids[i], SIGINT); // interrupt all bg pids.
+    }
+}
+
 /// NAME: ChangeDirectorysFromHome
 /// DESC: allows user to navigate file directory
 int ChangeDirectorysFromHome(char* InputBuffer)
@@ -110,10 +120,20 @@ int ChangeDirectorysFromHome(char* InputBuffer)
     char NewPath[1028];
 
     memset(NewPath,'\0',sizeof(NewPath));
+    InputBuffer[strlen(InputBuffer) -1] = '\0';
+
+    if(strlen(InputBuffer) == 2){// IF ONLY CD THEN GOTO HOME.
+        if(chdir(HomeDirectoryPath) != 0){ // cannot find directory
+            printf("Directory:%s not found.\n",HomeDirectoryPath);
+            return 1;
+        }
+        else{
+            return 0;
+        }
+    }
 
     strtok(InputBuffer," "); // removing unnessary spacing
     strcpy(InputBuffer,strtok(NULL,""));
-    InputBuffer[strlen(InputBuffer) -1] = '\0';
 
     //printf("    %s\n",InputBuffer);
     if(InputBuffer[0] == '/'){
@@ -128,8 +148,11 @@ int ChangeDirectorysFromHome(char* InputBuffer)
         sprintf(NewPath,"%s",InputBuffer);
         //printf("Path: %s\n",NewPath);
     }
+    else if(InputBuffer == NULL){
+        sprintf(NewPath,"%s",HomeDirectoryPath);
+    }
     else{
-        sprintf(NewPath,"%s/%s",HomeDirectoryPath,InputBuffer); // goto directory from home
+        sprintf(NewPath,"%s",InputBuffer); // goto directory from home
         //printf("Path: %s\n",NewPath);
     }
     if(chdir(NewPath) != 0){ // cannot find directory
@@ -178,6 +201,7 @@ void ParseInput(char* InputBuffer,struct InputObj* Obj)
 
     Obj->NumArgs = 0;
     InputBuffer[strlen(InputBuffer) -1] = '\0'; // removed \n
+
 
     if(InputBuffer[strlen(InputBuffer) -1] == '&'){ // check for bg enabled
         Obj->Background = true;
@@ -264,6 +288,12 @@ void _InitArgList(struct InputObj* Obj,char** Args)
     }
 
     Args[i+1] = NULL; // NEED THIS TO WORK.
+
+
+    // int j;
+    // for(j = 0; j < i + 2; j++){
+    //     printf("ARG(%d): %s\n",j,Args[j]);
+    // }
 }
 
 /// NAME: SetupRedirects
@@ -278,6 +308,7 @@ void SetupRedirects(struct InputObj* Obj)
         InputFileDescriptor = open(Obj->InputFile,O_RDONLY); // open file.
 
         if(InputFileDescriptor < 0){ // if not found exit.
+            printf(" Input file cannot be found.\n");
             exit(1);
         }
         dup2(InputFileDescriptor,0); // change input redirection.
@@ -289,7 +320,7 @@ void SetupRedirects(struct InputObj* Obj)
         OutputFileDescriptor = open(Obj->OutputFile,O_WRONLY | O_CREAT | O_TRUNC,0644); // create new file or edit.
 
         if(OutputFileDescriptor < 0){ // check for error.
-            //perror("smallsh");
+            printf(" Input file cannot be found.\n");
             exit(1);
         }
 
@@ -303,13 +334,13 @@ void SetupRedirects(struct InputObj* Obj)
 void RunCommand(struct InputObj* Obj)
 {
     pid_t pid = fork();
-    char *ArgList[128];
+    char *ArgList[512];
     int ProcessStatus;
 
     switch(pid)
     {
         case -1: //Error
-            //perror("Something went wrong with your fork\n");
+            printf("Something went wrong with your fork\n");
             exit(1);
             break;
 
@@ -318,7 +349,8 @@ void RunCommand(struct InputObj* Obj)
 
             _InitArgList(Obj,ArgList);
             execvp(Obj->Command, ArgList); // run command.
-            //perror("smallsh");
+            
+            printf("Command could not be found.\n");
             exit(1);
             break;
 
@@ -330,6 +362,7 @@ void RunCommand(struct InputObj* Obj)
             else{
                 
                 waitpid(pid,&ProcessStatus,0); // hang the shell is bg inactive.
+                //printf("ASDASDASD: %d | %d\n",pid,ProcessStatus);
                 LastForeGroundStatus = ProcessStatus;
                 //printf("parent(%d) waited for child process(%d)\n",getpid() ,pid);
             }
@@ -343,7 +376,9 @@ void RunCommand(struct InputObj* Obj)
 void TrapStopSignal(int sig)
 {
     if(ForegroundOnly == false){
+        KillBGProcesses();
         char* message = ("\nEntering foreground-only mode (& is now ignored)\n"); // enable Fg mode.
+        
         write(STDOUT_FILENO, message, 50);
         ForegroundOnly = true; // change global.
     }
@@ -387,8 +422,6 @@ void TrapChildSignal(int sig)
 void TrapTermSignal(int sig)
 {
     printf("\nterminated by signal %d\n",sig); 
-    fflush(stdout);
-    fflush(stdin);  
 }
 
 /// NAME: FreeAndClearInputObj
@@ -410,15 +443,7 @@ void FreeAndClearInputObj(struct InputObj* Obj)
     free(Obj);//IMPORTANT WITHOUT THIS SIGABRT SIGNAL WILL BE TRIGGERED <<<<<<<<
 }
 
-/// NAME: KillBGProcesses
-/// DESC: helper function for exting.
-void KillBGProcesses()
-{
-    int i;
-    for(i = 0;i < PidStack.NumBackPid + 1;i++){
-        kill(PidStack.BackgroundPids[i], SIGINT); // interrupt all bg pids.
-    }
-}
+
 /// NAME: RunShell
 /// DESC: runs the shell itself.
 void RunShell()
@@ -454,7 +479,9 @@ void RunShell()
         fflush(stdin);
 
         printf(": ");
+        memset(InputBuffer,'\0',1028);
         fgets(InputBuffer,1028,stdin); // get command line.
+        //getline(&InputBuffer,&LineMax,stdin);
         
         fflush(stdout);
         fflush(stdin);
@@ -464,10 +491,13 @@ void RunShell()
             KillBGProcesses();
             exit(0);
         }
-        else if(strncmp(InputBuffer, "#",1) == 0){ // comment.
+        else if(strncmp(InputBuffer, "#",1) == 0 ||
+                strncmp(InputBuffer, "^Z",2) == 0 ||
+                strncmp(InputBuffer, "^C",2) == 0){ // comment.
             //printf("Comment Comment Comment \n");
+            continue;
         }
-        else if(strncmp(InputBuffer,"cd ", 3) == 0){ // change directory
+        else if(strncmp(InputBuffer,"cd", 2) == 0){ // change directory
             //printf("Changing directory...\n");
             ChangeDirectorysFromHome(InputBuffer);
         }
@@ -484,7 +514,7 @@ void RunShell()
             //read in a command.
             Obj = malloc(1 * sizeof(struct InputObj)); 
             ParseInput(InputBuffer,Obj); // parse command line.
-            RunCommand(Obj); // run ocmmand.
+            RunCommand(Obj); // run command.
 
             FreeAndClearInputObj(Obj);
         }
@@ -494,7 +524,7 @@ void RunShell()
 
 /// NAME: main
 /// DESC: RUNS THIS THING.
-int main(void)
+int main(int argc,char *argv[])
 {
     _InitPidObj();
     RunShell(); // singleton for shell.
