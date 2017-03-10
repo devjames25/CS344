@@ -1,0 +1,6 @@
+while(recv(serverSocket,blahhh,sizeof(incoming data)) > 0){
+	if(incdata == '\n' || incdata == '\0'){
+		stop reading and process data.
+	}
+}
+close socket.
