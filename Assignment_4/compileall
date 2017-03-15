@@ -1,1 +1,7 @@
 #!/bin/bash
+#Key Generator
+gcc -std=c99 -Wall keygen.c -o keygen
+
+#Encryptors
+gcc  otp_enc.c -o otp_enc #Client
+gcc -Wall otp_enc_d.c -o otp_enc_d # server
