@@ -19,8 +19,8 @@ struct PidStackObj
 
 //NON MACRO GLOBALS
 struct PidStackObj PidStack;
-char* PROGNAME = "otp_enc_d";
-char AcceptedClientType = 'E';
+char* PROGNAME = "otp_dec_d";
+char AcceptedClientType = 'D';
 
 /// NAME: _InitPidObj
 /// DESC: Creates pid stack with -1 in each val.
@@ -78,7 +78,7 @@ void SpecificError(const char* msg)
 	exit(1);
 }
 
-char* Encryption(char* Key,char* Text)
+char* Decryption(char* Key,char* Text)
 {
 	int i;
 	int keytemp,texttemp;
@@ -87,13 +87,13 @@ char* Encryption(char* Key,char* Text)
 	memset(EncryptionStr,'\0',sizeof(EncryptionStr));
 
 	for(i = 0;i < length; i++){
-		if(Text[i] == ' '){
-			EncryptionStr[i] = '?';
+		if(Text[i] == '?'){
+			EncryptionStr[i] = ' ';
 		}
 		else{
 			keytemp = (int)Key[i];
 			texttemp = (int)Text[i];
-			EncryptionStr[i] = (char)(texttemp + (keytemp % 3));
+			EncryptionStr[i] = (char)(texttemp - (keytemp % 3));
 		}
 	}
 
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 				//begin reading in File
 				recv(establishedConnectionFD,FileBufferKey, FileLength * sizeof(char),0);
 				recv(establishedConnectionFD,FileBuffertext,FileLength * sizeof(char),0);
-				EncryptionBuffer = Encryption(FileBufferKey,FileBuffertext);
+				EncryptionBuffer = Decryption(FileBufferKey,FileBuffertext);
 
 				// printf(":::%s|\n",FileBufferKey);
 				// printf(":::%s|\n",FileBuffertext);

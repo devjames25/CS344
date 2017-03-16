@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 
 //NON MACRO GLOBALS
-char* PROGNAME = "ENC_CLIENT";
+char* PROGNAME = "DEC_CLIENT";
 
 struct FileInfoObject{
 	int KeyDescriptor;
@@ -52,7 +52,7 @@ FileInfoObject* InitEncryptionObject(char** argv)
 
 	file_ob->TextDescriptor = open(argv[1],O_RDONLY);
 	if(file_ob->TextDescriptor < 0){
-		SpecificError("Couldnt open plaintext file");
+		SpecificError("Couldnt open Cipherfile file");
 	}
 
 	file_ob->KeyDescriptor = open(argv[2],O_RDONLY);
@@ -77,16 +77,15 @@ char* ValidatefileContent(FileInfoObject* Obj, char fd)
 	}
 
 	if(read(FileDescriptor,fileContent,Obj->FileLength) < 0){ // redundant.
-		SpecificError("Couldnt open plaintext file");
+		SpecificError("Couldnt open text file");
 	}
 
-	for(i = 0; i < Obj->FileLength; i++){
-		Buffer = (fileContent[i]);
-		if( !(Buffer == ' ' || (Buffer >= 'A' && Buffer <= 'Z')) ){
-			SpecificError("Invalid character in a file.");
-		}
-
-	}
+	// for(i = 0; i < Obj->FileLength; i++){
+	// 	Buffer = (fileContent[i]);
+	// 	if( !(Buffer == ' ' || (Buffer >= 'A' && Buffer <= 'Z')) ){
+	// 		SpecificError("Invalid character in a file.");
+	// 	}
+	// }
 	return fileContent;
 }
 
@@ -107,11 +106,11 @@ int GetEncryptionObjFileLength(FileInfoObject* Obj)
 		SpecificError("Error getting stats of Keyfile.");
 	}
 	if(stat(Obj->TextFileName,&Text) < 0){
-		SpecificError("Error getting stats of Textfile.");
+		SpecificError("Error getting stats of Cipherfile.");
 	}
 
 	if(Key.st_size -1 < Text.st_size -1){
-		SpecificError("Error Textfile and Keyfile are not the same lengths");
+		SpecificError("Error Cipherfile and Keyfile are not the same lengths");
 	}
 	else{
 		Obj->FileLength = Text.st_size -1;
@@ -170,7 +169,7 @@ int main(int argc, char* argv[])
 	recv(socketFD,&serverAccept,sizeof(char),0);
 	if(serverAccept != 'Y'){
 		close(socketFD);
-		SpecificError("not an Encryption server.");
+		SpecificError("not an Decryption server.");
 	}
 
 	//sending data to server.

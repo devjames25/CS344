@@ -3,8 +3,8 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define KEYGENMIN 48
-#define KEYGENMAX 126
+#define KEYGENMIN 65
+#define KEYGENMAX 90
 
 char* GenKey(int length)
 {
@@ -13,7 +13,12 @@ char* GenKey(int length)
 
     //stop before null char
     for(i = 0;i < length;i++){
-        Key[i] = (rand() % (KEYGENMAX + 1 - KEYGENMIN) + KEYGENMIN);
+        if( (rand() % (10) + 1) == 3 || (rand() % (10) + 1) == 6){
+            Key[i] = ' ';
+        }
+        else{
+            Key[i] = (rand() % (KEYGENMAX + 1 - KEYGENMIN) + KEYGENMIN);
+        }
     }
     Key[i] = '\0';
 
