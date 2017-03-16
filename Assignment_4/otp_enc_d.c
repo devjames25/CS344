@@ -19,7 +19,7 @@ struct PidStackObj
 
 //NON MACRO GLOBALS
 struct PidStackObj PidStack;
-char* PROGNAME = "otp_enc_d";
+char* PROGNAME = "ENC_SERVER";
 char AcceptedClientType = 'E';
 
 /// NAME: _InitPidObj
@@ -70,33 +70,40 @@ void TerminateServer(int sig)
     }
 }
 
+//Brewster error function.
 void error(const char *msg) { perror(msg); exit(1); } // Error function used for reporting issues
 
+/// NAME: SpecificError
+/// DESC: My error function that prints program name at beginning.
 void SpecificError(const char* msg) 
 {
 	fprintf(stderr,"%s: %s\n",PROGNAME,msg);
 	exit(1);
 }
 
+/// NAME: Encryption
+/// DESC: encrypt a text with a key.
 char* Encryption(char* Key,char* Text)
 {
 	int i;
 	int keytemp,texttemp;
 	int length = strlen(Text);
 	char EncryptionStr[70000];
-	memset(EncryptionStr,'\0',sizeof(EncryptionStr));
+	memset(EncryptionStr,'\0',sizeof(EncryptionStr));//setup buffer
 
-	for(i = 0;i < length; i++){
+	for(i = 0;i < length; i++){//iterate through all chars.
 		if(Text[i] == ' '){
-			EncryptionStr[i] = '?';
+			EncryptionStr[i] = '?'; // replace spaces with ?
 		}
 		else{
 			keytemp = (int)Key[i];
 			texttemp = (int)Text[i];
+			// take char int values and add them.
 			EncryptionStr[i] = (char)(texttemp + (keytemp % 3));
 		}
 	}
 
+	//return new encryption.
 	return strdup(EncryptionStr);
 }
 
@@ -104,7 +111,9 @@ int main(int argc, char *argv[])
 {
 	//initialization.
 	_InitPidObj();
-	signal(SIGINT,TerminateServer);
+	signal(SIGINT,TerminateServer);//handler to kill bg pids.
+
+	//vars.
 	char FileBufferKey[70000];
 	char FileBuffertext[70000];
 	char* EncryptionBuffer;
@@ -149,13 +158,15 @@ int main(int argc, char *argv[])
 				SpecificError("Child fork error.");
 			case 0://child.
 
+				//check the client for 'E'ncrpytion type.
 				recv(establishedConnectionFD,&clienttype,sizeof(char),0);
-				if(clienttype != AcceptedClientType){
+				if(clienttype != AcceptedClientType){//if not matching client send no connection.
 					charResponse = 'N';
 					send(establishedConnectionFD,&charResponse,sizeof(char),0);
-					SpecificError("Invalid client connection.");
+					SpecificError("Invalid client connection.");//error
 				}
 				else{
+					//send accept client.
 					charResponse = 'Y';
 					send(establishedConnectionFD,&charResponse,sizeof(char),0);
 				}
@@ -167,19 +178,21 @@ int main(int argc, char *argv[])
 				memset(FileBuffertext,'\0',sizeof(FileBuffertext));
 
 				//begin reading in File
-				recv(establishedConnectionFD,FileBufferKey, FileLength * sizeof(char),0);
-				recv(establishedConnectionFD,FileBuffertext,FileLength * sizeof(char),0);
-				EncryptionBuffer = Encryption(FileBufferKey,FileBuffertext);
+				recv(establishedConnectionFD,FileBufferKey, FileLength * sizeof(char),0);//keyfile.
+				recv(establishedConnectionFD,FileBuffertext,FileLength * sizeof(char),0);//textfile.
+				EncryptionBuffer = Encryption(FileBufferKey,FileBuffertext);//encrypt files.
 
 				// printf(":::%s|\n",FileBufferKey);
 				// printf(":::%s|\n",FileBuffertext);
 				// printf(":::%s|\n",EncryptionBuffer);
 
+				//send decrption text back to client and close descriptor.
 				send(establishedConnectionFD,EncryptionBuffer,FileLength * sizeof(char),0);
 				shutdown(establishedConnectionFD,2);
 
 				exit(0);
 			default://parent
+				//add to 5 possible processes.
 				PushBackPid(pid);
 		}
 

@@ -6,6 +6,8 @@
 #define KEYGENMIN 65
 #define KEYGENMAX 90
 
+/// NAME: GenKey
+/// DESC: generates a char* of random chars
 char* GenKey(int length)
 {
     int i;
@@ -25,6 +27,7 @@ char* GenKey(int length)
     return Key;
 }
 
+//validates theres atleast 1 arg in args passed to funcion.
 void validArgc(int argc)
 {
     //expected ./Keygen ###
@@ -36,17 +39,21 @@ void validArgc(int argc)
 
 int main(int argc, char* argv[])
 {
+    //vars
     int KeyLength;
     char* EncryptionKey;
     validArgc(argc);
 
     //Begin Prog.
     srand(time(NULL));
-    KeyLength = atoi(argv[1]);
+    KeyLength = atoi(argv[1]) + 1;//must be + 1 to match test script.
 
+    // gen key.
     EncryptionKey = GenKey(KeyLength);
+    //print off key.
     printf("%s",EncryptionKey);
 
+    //free from heap.
     free(EncryptionKey);
     return 0;
 }
